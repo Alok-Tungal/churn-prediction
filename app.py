@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-
+import plotly.express as px
+import joblib
 
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Churn Prediction Dashboard", layout="wide")
@@ -37,7 +38,11 @@ def load_data(file):
 # --- LOAD MODEL ---
 @st.cache_resource
 def load_model():
-    return joblib.load("churn_model.pkl")  # Make sure this file is in your project folder
+    try:
+        return joblib.load("churn_model.pkl")
+    except FileNotFoundError:
+        st.error("🚫 Model file `churn_model.pkl` not found. Please add it to the project folder.")
+        return None
 
 # --- MAIN BODY ---
 if uploaded_file:
@@ -52,7 +57,7 @@ if uploaded_file:
     # --- DATA OVERVIEW ---
     st.markdown("### 📊 Exploratory Data Analysis")
     st.write("#### Preview of Dataset")
-    st.dataframe(df.head())
+    st.dataframe(df.head(), use_container_width=True)
 
     # --- CHURN PIE CHART ---
     if 'Churn' in df.columns:
@@ -61,23 +66,27 @@ if uploaded_file:
 
     # --- SCATTER PLOT ---
     st.subheader("📈 Tenure vs Monthly Charges")
-    fig2 = px.scatter(df, x='tenure', y='MonthlyCharges', color='Churn' if 'Churn' in df.columns else None,
+    fig2 = px.scatter(df, x='tenure', y='MonthlyCharges',
+                      color='Churn' if 'Churn' in df.columns else None,
                       size='TotalCharges', title='Tenure vs Monthly Charges')
     st.plotly_chart(fig2, use_container_width=True)
 
     # --- HEATMAP ---
     st.subheader("🔗 Correlation Heatmap")
-    num_df = df.select_dtypes(include='number')
-    corr = num_df.corr()
-    fig, ax = plt.subplots(figsize=(10, 6))
-    sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax)
-    st.pyplot(fig)
+    try:
+        num_df = df.select_dtypes(include='number')
+        corr = num_df.corr()
+        fig, ax = plt.subplots(figsize=(10, 6))
+        sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax)
+        st.pyplot(fig)
+    except Exception as e:
+        st.error(f"Heatmap generation error: {e}")
 
     # --- PREDICTION ---
     st.markdown("### 🧠 Churn Prediction (Trained Model)")
     model = load_model()
 
-    if st.checkbox("Show Prediction Form"):
+    if model and st.checkbox("Show Prediction Form"):
         with st.form("prediction_form"):
             st.write("Enter customer details:")
             tenure = st.slider("Tenure (months)", 0, 72, 12)
