@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-
 import seaborn as sns
 import matplotlib.pyplot as plt
 import joblib
@@ -102,59 +101,3 @@ else:
 # --- FOOTER ---
 st.markdown("---")
 st.caption("Built with ❤️ using Streamlit | Alok Tungal's Churn App")
-
-
-
-# model = joblib.load("C:/Users/Dell/Downloads/Weather Data/Weather Data/2021/streamlit_application/churn_model.pkl")
-
-# from sklearn.model_selection import train_test_split
-# from sklearn.ensemble import RandomForestClassifier
-# from sklearn.preprocessing import LabelEncoder
-# from sklearn.metrics import accuracy_score
-# import joblib
-
-# import pandas as pd
-
-# # Replace 'your_data.csv' with the actual file path
-# df = pd.read_csv("Churn_data")
-
-# # Make a copy of the DataFrame for processing
-# data = df.copy()
-
-# # Drop customerID as it's not useful for prediction
-# data.drop('customerID', axis=1, inplace=True)
-
-# # Convert TotalCharges to numeric (it might have spaces or invalid entries)
-# data['TotalCharges'] = pd.to_numeric(data['TotalCharges'], errors='coerce')
-
-# # Drop rows with missing values (after conversion)
-# data.dropna(inplace=True)
-
-# # Encode target column
-# data['Churn'] = data['Churn'].map({'Yes': 1, 'No': 0})
-
-# # Encode categorical variables
-# label_encoders = {}
-# for col in data.select_dtypes(include='object').columns:
-#     le = LabelEncoder()
-#     data[col] = le.fit_transform(data[col])
-#     label_encoders[col] = le
-
-# # Features and target
-# X = data.drop('Churn', axis=1)
-# y = data['Churn']
-
-# # Train/test split
-# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-# # Train Random Forest model
-# model = RandomForestClassifier(n_estimators=100, random_state=42)
-# model.fit(X_train, y_train)
-
-# # Save the model
-# model_path = "/mnt/data/churn_model.pkl"
-# joblib.dump(model, model_path)
-
-# # Evaluate accuracy
-# accuracy = accuracy_score(y_test, model.predict(X_test))
-# model_path, accuracy
