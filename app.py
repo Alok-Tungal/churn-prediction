@@ -11,9 +11,14 @@ sns.set(style='whitegrid')
 plt.rcParams['figure.figsize'] = (8, 5)
 
 @st.cache_data
+@st.cache_data
 def load_data():
-    return pd.read_csv('churn_dataset')
-
+    try:
+        return pd.read_csv('churn_dataset.csv')
+    except FileNotFoundError:
+        st.error("❌ Missing file: `churn_dataset.csv`. Please upload it to your project directory.")
+        return pd.DataFrame()
+        
 @st.cache_resource
 def load_advanced_model():
     with open('churn_pred.pkl', 'rb') as f:
