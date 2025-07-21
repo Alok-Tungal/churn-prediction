@@ -1,112 +1,129 @@
+# app.py
 import streamlit as st
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-import plotly.express as px
-import joblib
+import pickle
+import numpy as np
 
-# --- PAGE CONFIG ---
-st.set_page_config(page_title="Churn Prediction Dashboard", layout="wide")
+st.set_page_config(page_title="📊 Telecom Churn Dashboard", layout="wide")
+sns.set(style='whitegrid')
+plt.rcParams['figure.figsize'] = (8, 5)
 
-# --- TITLE ---
-st.title("📉 Customer Churn Prediction App")
-st.markdown("**Visualize, Analyze & Predict Customer Churn in One Place**")
-
-# --- SIDEBAR UPLOAD ---
-st.sidebar.header("🔍 Upload Your Dataset")
-uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
-
-# --- LOAD DATA ---
 @st.cache_data
-def load_data(file):
-    df = pd.read_csv(file)
+def load_data():
+    return pd.read_csv('churn_dataset.csv')
 
-    # Ensure numeric conversion
-    for col in ['MonthlyCharges', 'TotalCharges', 'tenure']:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
-
-    # Drop rows with missing values
-    df.dropna(subset=['MonthlyCharges', 'TotalCharges', 'tenure'], inplace=True)
-
-    # Convert to integer for visualization
-    df['MonthlyCharges'] = df['MonthlyCharges'].astype(int)
-    df['TotalCharges'] = df['TotalCharges'].astype(int)
-    df['tenure'] = df['tenure'].astype(int)
-
-    return df
-
-# --- LOAD MODEL ---
 @st.cache_resource
-def load_model():
-    try:
-        return joblib.load("churn_model.pkl")
-    except FileNotFoundError:
-        st.error("🚫 Model file `churn_model.pkl` not found. Please add it to the project folder.")
-        return None
+def load_advanced_model():
+    with open('advanced_churn_model.pkl', 'rb') as f:
+        model, scaler, columns = pickle.load(f)
+    return model, scaler, columns
 
-# --- MAIN BODY ---
-if uploaded_file:
-    df = load_data(uploaded_file)
+data = load_data()
+model, scaler, model_columns = load_advanced_model()
 
-    # --- FILTER OPTIONS ---
-    st.sidebar.subheader("Filter Data")
-    if 'gender' in df.columns:
-        gender = st.sidebar.multiselect("Select Gender", df['gender'].unique(), default=df['gender'].unique())
-        df = df[df['gender'].isin(gender)]
+# Title
+st.title("📊 Telecom Customer Churn Dashboard")
+st.caption("Explore churn patterns, predict churn, and understand why.")
 
-    # --- DATA OVERVIEW ---
-    st.markdown("### 📊 Exploratory Data Analysis")
-    st.write("#### Preview of Dataset")
-    st.dataframe(df.head(), use_container_width=True)
+# Metric
+churn_rate = (data['Churn'].value_counts(normalize=True) * 100).get('Yes', 0)
+st.metric("📉 Overall Churn Rate", f"{churn_rate:.2f} %")
 
-    # --- CHURN PIE CHART ---
-    if 'Churn' in df.columns:
-        churn_fig = px.pie(df, names='Churn', title='Churn Distribution', hole=0.4)
-        st.plotly_chart(churn_fig, use_container_width=True)
+# Tabs
+tab_viz, tab_predict = st.tabs(["📈 Analysis & Insights", "🔮 Predict Churn"])
 
-    # --- SCATTER PLOT ---
-    st.subheader("📈 Tenure vs Monthly Charges")
-    fig2 = px.scatter(df, x='tenure', y='MonthlyCharges',
-                      color='Churn' if 'Churn' in df.columns else None,
-                      size='TotalCharges', title='Tenure vs Monthly Charges')
-    st.plotly_chart(fig2, use_container_width=True)
+with tab_viz:
+    st.subheader("✅ Churn Distribution")
+    churn_counts = data['Churn'].value_counts()
+    fig, ax = plt.subplots()
+    bars = ax.bar(churn_counts.index, churn_counts.values, color=['#FF6B6B','#4ECDC4'])
+    ax.bar_label(bars)
+    st.pyplot(fig)
 
-    # --- HEATMAP ---
-    st.subheader("🔗 Correlation Heatmap")
-    try:
-        num_df = df.select_dtypes(include='number')
-        corr = num_df.corr()
-        fig, ax = plt.subplots(figsize=(10, 6))
-        sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax)
+    st.subheader("📑 Churn by Contract Type")
+    churn_rate_contract = data.groupby('Contract')['Churn'].value_counts(normalize=True).unstack().get('Yes',0)*100
+    fig, ax = plt.subplots()
+    bars = ax.bar(churn_rate_contract.index, churn_rate_contract.values, color='#ffa600')
+    ax.bar_label(bars, fmt='%.1f%%')
+    ax.set_ylabel('Churn Rate (%)')
+    st.pyplot(fig)
+
+    st.subheader("💳 Churn by Payment Method")
+    churn_rate_payment = data.groupby('PaymentMethod')['Churn'].value_counts(normalize=True).unstack().get('Yes',0)*100
+    churn_rate_payment = churn_rate_payment.sort_values(ascending=False)
+    fig, ax = plt.subplots()
+    bars = ax.barh(churn_rate_payment.index, churn_rate_payment.values, color='#00b4d8')
+    ax.bar_label(bars, fmt='%.1f%%')
+    st.pyplot(fig)
+
+    st.markdown("---")
+    st.markdown("### ✏️ **Key Business Insights**")
+    st.markdown("""
+    - Highest churn for month-to-month contracts & electronic check payments.
+    - Higher monthly & total charges linked to churn.
+    - Short-tenure customers churn more.
+    """)
+
+with tab_predict:
+    st.subheader("🔮 Predict Customer Churn")
+
+    st.markdown("Enter customer details below:")
+
+    # Better UI inputs
+    col1, col2 = st.columns(2)
+    with col1:
+        tenure = st.slider('Tenure (months)', min_value=0, max_value=100, value=12)
+        monthly = st.number_input('Monthly Charges', min_value=0.0, max_value=200.0, value=70.0)
+        total = st.number_input('Total Charges', min_value=0.0, max_value=10000.0, value=2500.0)
+    with col2:
+        contract = st.selectbox('Contract Type', ['Month-to-month', 'One year', 'Two year'])
+        payment = st.selectbox('Payment Method', [
+            'Electronic check', 'Mailed check', 'Bank transfer (automatic)', 'Credit card (automatic)'
+        ])
+        internet = st.selectbox('Internet Service', ['DSL', 'Fiber optic', 'No'])
+
+    # Build input dataframe
+    input_data = pd.DataFrame({
+        'tenure': [tenure],
+        'MonthlyCharges': [monthly],
+        'TotalCharges': [total],
+        f'Contract_{contract}': [1],
+        f'PaymentMethod_{payment}': [1],
+        f'InternetService_{internet}': [1]
+    })
+
+    # Add missing columns
+    for col in model_columns:
+        if col not in input_data.columns:
+            input_data[col] = 0
+    input_data = input_data[model_columns]
+
+    # Scale
+    input_scaled = scaler.transform(input_data)
+
+    # Predict
+    if st.button('Predict'):
+        pred = model.predict(input_scaled)[0]
+        prob = model.predict_proba(input_scaled)[0][1]*100
+        if pred == 1:
+            st.error(f"⚠️ Likely to churn! (Probability: {prob:.1f}%)")
+        else:
+            st.success(f"✅ Not likely to churn (Probability: {100 - prob:.1f}%)")
+
+        # Show feature importance
+        st.subheader("📊 Feature Importance (Top 5)")
+        importances = model.feature_importances_
+        feat_df = pd.DataFrame({'feature': model_columns, 'importance': importances})
+        feat_df = feat_df.sort_values('importance', ascending=False).head(5)
+        fig, ax = plt.subplots()
+        bars = ax.barh(feat_df['feature'], feat_df['importance'], color='#4e79a7')
+        ax.invert_yaxis()
+        ax.set_xlabel('Importance')
         st.pyplot(fig)
-    except Exception as e:
-        st.error(f"Heatmap generation error: {e}")
 
-    # --- PREDICTION ---
-    st.markdown("### 🧠 Churn Prediction (Trained Model)")
-    model = load_model()
-
-    if model and st.checkbox("Show Prediction Form"):
-        with st.form("prediction_form"):
-            st.write("Enter customer details:")
-            tenure = st.slider("Tenure (months)", 0, 72, 12)
-            monthly_charges = st.number_input("Monthly Charges", 0.0, 200.0, 50.0)
-            total_charges = st.number_input("Total Charges", 0.0, 10000.0, 500.0)
-
-            submit = st.form_submit_button("Predict Churn")
-
-        if submit:
-            input_data = pd.DataFrame([[tenure, monthly_charges, total_charges]],
-                                      columns=["tenure", "MonthlyCharges", "TotalCharges"])
-            prediction = model.predict(input_data)[0]
-            probability = model.predict_proba(input_data)[0][1]
-
-            st.success(f"Prediction: **{'Churn' if prediction == 1 else 'No Churn'}**")
-            st.info(f"Churn Probability: `{probability:.2%}`")
-
-else:
-    st.info("👈 Upload a dataset from the sidebar to begin.")
-
-# --- FOOTER ---
 st.markdown("---")
-st.caption("Built with ❤️ using Streamlit | Alok Tungal's Churn App")
+
+
+
