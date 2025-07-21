@@ -1,4 +1,3 @@
-# app.py
 import streamlit as st
 import pandas as pd
 import seaborn as sns
@@ -6,34 +5,56 @@ import matplotlib.pyplot as plt
 import pickle
 import numpy as np
 
+# --- If pickle used custom function, patch it here ---
+def ordinal_encode_func(df):
+    # Placeholder if your model was trained with a custom encoder
+    return df
+
+import sys
+sys.modules['__main__'].ordinal_encode_func = ordinal_encode_func
+# -----------------------------------------------------
+
+# Set Streamlit layout
 st.set_page_config(page_title="📊 Telecom Churn Dashboard", layout="wide")
 sns.set(style='whitegrid')
 plt.rcParams['figure.figsize'] = (8, 5)
 
+# Load data
 @st.cache_data
 def load_data():
-    return pd.read_csv('Churn_data.csv')
+    return pd.read_csv('churn_data.csv')  # ✅ Ensure this file exists in your folder
 
+# Load model and scaler
 @st.cache_resource
 def load_advanced_model():
-    with open('model.pkl', 'rb') as f:
-        model, scaler, columns = pickle.load(f)
-    return model, scaler, columns
+    with open('churn_pred.pkl', 'rb') as f:
+        model, scaler = pickle.load(f)  # ✅ Fix: unpack only 2 values
 
+    # ✅ Manually define expected input columns
+    model_columns = [
+        'tenure', 'MonthlyCharges', 'TotalCharges',
+        'Contract_Month-to-month', 'Contract_One year', 'Contract_Two year',
+        'PaymentMethod_Electronic check', 'PaymentMethod_Mailed check',
+        'PaymentMethod_Bank transfer (automatic)', 'PaymentMethod_Credit card (automatic)',
+        'InternetService_DSL', 'InternetService_Fiber optic', 'InternetService_No'
+    ]
+    
+    return model, scaler, model_columns
+
+# Load resources
 data = load_data()
 model, scaler, model_columns = load_advanced_model()
 
-# Title
+# Title and KPI
 st.title("📊 Telecom Customer Churn Dashboard")
 st.caption("Explore churn patterns, predict churn, and understand why.")
-
-# Metric
 churn_rate = (data['Churn'].value_counts(normalize=True) * 100).get('Yes', 0)
 st.metric("📉 Overall Churn Rate", f"{churn_rate:.2f} %")
 
 # Tabs
 tab_viz, tab_predict = st.tabs(["📈 Analysis & Insights", "🔮 Predict Churn"])
 
+# === 📈 ANALYSIS TAB ===
 with tab_viz:
     st.subheader("✅ Churn Distribution")
     churn_counts = data['Churn'].value_counts()
@@ -66,12 +87,11 @@ with tab_viz:
     - Short-tenure customers churn more.
     """)
 
+# === 🔮 PREDICT TAB ===
 with tab_predict:
     st.subheader("🔮 Predict Customer Churn")
-
     st.markdown("Enter customer details below:")
 
-    # Better UI inputs
     col1, col2 = st.columns(2)
     with col1:
         tenure = st.slider('Tenure (months)', min_value=0, max_value=100, value=12)
@@ -84,7 +104,7 @@ with tab_predict:
         ])
         internet = st.selectbox('Internet Service', ['DSL', 'Fiber optic', 'No'])
 
-    # Build input dataframe
+    # Prepare input
     input_data = pd.DataFrame({
         'tenure': [tenure],
         'MonthlyCharges': [monthly],
@@ -94,7 +114,7 @@ with tab_predict:
         f'InternetService_{internet}': [1]
     })
 
-    # Add missing columns
+    # Fill missing columns
     for col in model_columns:
         if col not in input_data.columns:
             input_data[col] = 0
@@ -106,21 +126,24 @@ with tab_predict:
     # Predict
     if st.button('Predict'):
         pred = model.predict(input_scaled)[0]
-        prob = model.predict_proba(input_scaled)[0][1]*100
+        prob = model.predict_proba(input_scaled)[0][1] * 100
+
         if pred == 1:
             st.error(f"⚠️ Likely to churn! (Probability: {prob:.1f}%)")
         else:
             st.success(f"✅ Not likely to churn (Probability: {100 - prob:.1f}%)")
 
-        # Show feature importance
-        st.subheader("📊 Feature Importance (Top 5)")
-        importances = model.feature_importances_
-        feat_df = pd.DataFrame({'feature': model_columns, 'importance': importances})
-        feat_df = feat_df.sort_values('importance', ascending=False).head(5)
-        fig, ax = plt.subplots()
-        bars = ax.barh(feat_df['feature'], feat_df['importance'], color='#4e79a7')
-        ax.invert_yaxis()
-        ax.set_xlabel('Importance')
-        st.pyplot(fig)
+        # Optional: Feature importance (only if model supports it)
+        if hasattr(model, 'feature_importances_'):
+            st.subheader("📊 Feature Importance (Top 5)")
+            feat_df = pd.DataFrame({
+                'feature': model_columns,
+                'importance': model.feature_importances_
+            }).sort_values('importance', ascending=False).head(5)
+            fig, ax = plt.subplots()
+            bars = ax.barh(feat_df['feature'], feat_df['importance'], color='#4e79a7')
+            ax.invert_yaxis()
+            ax.set_xlabel('Importance')
+            st.pyplot(fig)
 
 st.markdown("---")
