@@ -16,7 +16,7 @@ def load_data():
 
 @st.cache_resource
 def load_advanced_model():
-    with open('advanced_churn_model.pkl', 'rb') as f:
+    with open('churn_pred.pkl', 'rb') as f:
         model, scaler, columns = pickle.load(f)
     return model, scaler, columns
 
