@@ -10,6 +10,9 @@ st.set_page_config(page_title="📊 Telecom Churn Dashboard", layout="wide")
 sns.set(style='whitegrid')
 plt.rcParams['figure.figsize'] = (8, 5)
 
+@st.cache_data
+def load_data():
+    return pd.read_csv('churn_dataset.csv')
 
 @st.cache_resource
 def load_advanced_model():
@@ -17,13 +20,16 @@ def load_advanced_model():
         model, scaler, columns = pickle.load(f)
     return model, scaler, columns
 
-
+data = load_data()
+model, scaler, model_columns = load_advanced_model()
 
 # Title
 st.title("📊 Telecom Customer Churn Dashboard")
 st.caption("Explore churn patterns, predict churn, and understand why.")
 
-
+# Metric
+churn_rate = (data['Churn'].value_counts(normalize=True) * 100).get('Yes', 0)
+st.metric("📉 Overall Churn Rate", f"{churn_rate:.2f} %")
 
 # Tabs
 tab_viz, tab_predict = st.tabs(["📈 Analysis & Insights", "🔮 Predict Churn"])
