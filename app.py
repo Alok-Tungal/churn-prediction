@@ -23,9 +23,7 @@ def load_advanced_model():
 st.title("📊 Telecom Customer Churn Dashboard")
 st.caption("Explore churn patterns, predict churn, and understand why.")
 
-# Metric
-churn_rate = (data['Churn'].value_counts(normalize=True) * 100).get('Yes', 0)
-st.metric("📉 Overall Churn Rate", f"{churn_rate:.2f} %")
+
 
 # Tabs
 tab_viz, tab_predict = st.tabs(["📈 Analysis & Insights", "🔮 Predict Churn"])
