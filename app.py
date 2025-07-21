@@ -6,16 +6,16 @@ import pickle
 import numpy as np
 import sys
 
-# Patch custom function (for safety)
+# Patch (in case model uses custom funcs)
 def ordinal_encode_func(df): return df
 sys.modules['__main__'].ordinal_encode_func = ordinal_encode_func
 
-# Layout and settings
+# Layout
 st.set_page_config(page_title="📊 Telecom Churn App", layout="wide")
 sns.set(style='whitegrid')
 plt.rcParams['figure.figsize'] = (8, 5)
 
-# Load dataset
+# Load data
 @st.cache_data
 def load_data():
     return pd.read_csv('Churn_data.csv')
@@ -27,18 +27,39 @@ def load_model():
         model = pickle.load(f)
     return model
 
-# Load
 data = load_data()
 model = load_model()
 
-# Sidebar navigation
+# ✅ MANUALLY define feature names used while training
+model_features = [
+    'tenure', 'MonthlyCharges', 'TotalCharges',
+    'gender_Female', 'gender_Male',
+    'SeniorCitizen_No', 'SeniorCitizen_Yes',
+    'Partner_No', 'Partner_Yes',
+    'Dependents_No', 'Dependents_Yes',
+    'PhoneService_No', 'PhoneService_Yes',
+    'MultipleLines_No', 'MultipleLines_No phone service', 'MultipleLines_Yes',
+    'InternetService_DSL', 'InternetService_Fiber optic', 'InternetService_No',
+    'OnlineSecurity_No', 'OnlineSecurity_No internet service', 'OnlineSecurity_Yes',
+    'OnlineBackup_No', 'OnlineBackup_No internet service', 'OnlineBackup_Yes',
+    'DeviceProtection_No', 'DeviceProtection_No internet service', 'DeviceProtection_Yes',
+    'TechSupport_No', 'TechSupport_No internet service', 'TechSupport_Yes',
+    'StreamingTV_No', 'StreamingTV_No internet service', 'StreamingTV_Yes',
+    'StreamingMovies_No', 'StreamingMovies_No internet service', 'StreamingMovies_Yes',
+    'Contract_Month-to-month', 'Contract_One year', 'Contract_Two year',
+    'PaperlessBilling_No', 'PaperlessBilling_Yes',
+    'PaymentMethod_Bank transfer (automatic)', 'PaymentMethod_Credit card (automatic)',
+    'PaymentMethod_Electronic check', 'PaymentMethod_Mailed check'
+]
+
+# Sidebar Navigation
 st.sidebar.title("🔍 Navigation")
 page = st.sidebar.radio("Go to", ["🏠 Churn Prediction", "📈 Insights & Graphs", "📄 Raw Data"])
 
-# ===================== 🏠 MAIN: Churn Prediction =====================
+# =============== 🏠 Prediction Page =====================
 if page == "🏠 Churn Prediction":
-    st.title("🔮 Telecom Churn Prediction")
-    st.markdown("Enter customer details to predict churn likelihood:")
+    st.title("🔮 Predict Telecom Churn")
+    st.markdown("Enter customer details below to check churn probability.")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -61,64 +82,61 @@ if page == "🏠 Churn Prediction":
         Contract = st.selectbox("Contract", ['Month-to-month', 'One year', 'Two year'])
         PaperlessBilling = st.selectbox("Paperless Billing", ['Yes', 'No'])
         PaymentMethod = st.selectbox("Payment Method", [
-            'Electronic check', 'Mailed check', 'Bank transfer (automatic)', 'Credit card (automatic)'
+            'Electronic check', 'Mailed check',
+            'Bank transfer (automatic)', 'Credit card (automatic)'
         ])
         MonthlyCharges = st.number_input("Monthly Charges", 0.0, 200.0, 70.0)
         TotalCharges = st.number_input("Total Charges", 0.0, 10000.0, 2500.0)
 
-    # Predict button
+    # Build Input DataFrame
+    input_data = pd.DataFrame([{
+        'tenure': tenure,
+        'MonthlyCharges': MonthlyCharges,
+        'TotalCharges': TotalCharges,
+        'gender': gender,
+        'SeniorCitizen': SeniorCitizen,
+        'Partner': Partner,
+        'Dependents': Dependents,
+        'PhoneService': PhoneService,
+        'MultipleLines': MultipleLines,
+        'InternetService': InternetService,
+        'OnlineSecurity': OnlineSecurity,
+        'OnlineBackup': OnlineBackup,
+        'DeviceProtection': DeviceProtection,
+        'TechSupport': TechSupport,
+        'StreamingTV': StreamingTV,
+        'StreamingMovies': StreamingMovies,
+        'Contract': Contract,
+        'PaperlessBilling': PaperlessBilling,
+        'PaymentMethod': PaymentMethod
+    }])
+
+    # Encode input
+    input_encoded = pd.get_dummies(input_data)
+
+    # Add any missing columns expected by model
+    for col in model_features:
+        if col not in input_encoded.columns:
+            input_encoded[col] = 0
+
+    # Reorder columns to match model
+    input_encoded = input_encoded[model_features]
+
     if st.button("🔍 Predict Churn"):
         try:
-            # Raw input DataFrame
-            input_dict = {
-                'gender': gender,
-                'SeniorCitizen': SeniorCitizen,
-                'Partner': Partner,
-                'Dependents': Dependents,
-                'tenure': tenure,
-                'PhoneService': PhoneService,
-                'MultipleLines': MultipleLines,
-                'InternetService': InternetService,
-                'OnlineSecurity': OnlineSecurity,
-                'OnlineBackup': OnlineBackup,
-                'DeviceProtection': DeviceProtection,
-                'TechSupport': TechSupport,
-                'StreamingTV': StreamingTV,
-                'StreamingMovies': StreamingMovies,
-                'Contract': Contract,
-                'PaperlessBilling': PaperlessBilling,
-                'PaymentMethod': PaymentMethod,
-                'MonthlyCharges': MonthlyCharges,
-                'TotalCharges': TotalCharges
-            }
-            input_df = pd.DataFrame([input_dict])
+            pred = model.predict(input_encoded)[0]
+            prob = model.predict_proba(input_encoded)[0][1] * 100
 
-            # Encode categorical columns using one-hot encoding
-            input_encoded = pd.get_dummies(input_df)
-
-            # Align with model's expected input features
-            expected_cols = model.feature_names_in_
-            for col in expected_cols:
-                if col not in input_encoded.columns:
-                    input_encoded[col] = 0  # Add missing with 0
-
-            input_encoded = input_encoded[expected_cols]  # Reorder columns
-
-            # Predict
-            prediction = model.predict(input_encoded)[0]
-            probability = model.predict_proba(input_encoded)[0][1] * 100
-
-            if prediction == 1:
-                st.error(f"⚠️ Likely to churn (Probability: {probability:.1f}%)")
+            if pred == 1:
+                st.error(f"⚠️ Likely to churn (Probability: {prob:.1f}%)")
             else:
-                st.success(f"✅ Not likely to churn (Probability: {100 - probability:.1f}%)")
-
+                st.success(f"✅ Not likely to churn (Probability: {100 - prob:.1f}%)")
         except Exception as e:
-            st.error(f"❌ Prediction Error: {str(e)}")
+            st.error(f"❌ Prediction Error: {e}")
 
-# ===================== 📈 Insights & Graphs =====================
+# =============== 📈 Insights =====================
 elif page == "📈 Insights & Graphs":
-    st.title("📊 Churn Analysis")
+    st.title("📈 Churn Visual Insights")
 
     st.subheader("✅ Churn Distribution")
     churn_counts = data['Churn'].value_counts()
@@ -132,7 +150,6 @@ elif page == "📈 Insights & Graphs":
     fig, ax = plt.subplots()
     bars = ax.bar(churn_rate_contract.index, churn_rate_contract.values, color='#ffa600')
     ax.bar_label(bars, fmt='%.1f%%')
-    ax.set_ylabel('Churn Rate (%)')
     st.pyplot(fig)
 
     st.subheader("💳 Churn by Payment Method")
@@ -143,15 +160,9 @@ elif page == "📈 Insights & Graphs":
     ax.bar_label(bars, fmt='%.1f%%')
     st.pyplot(fig)
 
-    st.markdown("### 🧠 Key Insights")
-    st.markdown("""
-    - Month-to-month contracts have highest churn rate.
-    - Electronic check users churn more.
-    - Customers with short tenure are more likely to churn.
-    """)
-
-# ===================== 📄 Raw Data =====================
+# =============== 📄 Raw Data =====================
 elif page == "📄 Raw Data":
-    st.title("📄 Raw Dataset Preview")
+    st.title("📄 Raw Dataset")
     st.dataframe(data)
     st.caption(f"Total Records: {len(data)}")
+
