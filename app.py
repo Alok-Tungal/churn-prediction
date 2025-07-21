@@ -12,11 +12,11 @@ plt.rcParams['figure.figsize'] = (8, 5)
 
 @st.cache_data
 def load_data():
-    return pd.read_csv('churn_dataset.csv')
+    return pd.read_csv('Churn_data.csv')
 
 @st.cache_resource
 def load_advanced_model():
-    with open('advanced_churn_model.pkl', 'rb') as f:
+    with open('model.pkl', 'rb') as f:
         model, scaler, columns = pickle.load(f)
     return model, scaler, columns
 
