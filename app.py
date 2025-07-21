@@ -5,59 +5,35 @@ import matplotlib.pyplot as plt
 import pickle
 import numpy as np
 
-# Patch for custom functions if required during pickle loading
-def ordinal_encode_func(df):
-    return df
-
-import sys
-sys.modules['__main__'].ordinal_encode_func = ordinal_encode_func
-
-# Streamlit settings
-st.set_page_config(page_title="📊 Telecom Churn Prediction", layout="wide")
+# Streamlit config
+st.set_page_config(page_title="📊 Telecom Churn App", layout="wide")
 sns.set(style='whitegrid')
 plt.rcParams['figure.figsize'] = (8, 5)
 
-# --- Load Data ---
+# Load Data
 @st.cache_data
 def load_data():
-    return pd.read_csv('Churn_data.csv')  # Ensure this file is in the same directory
+    return pd.read_csv('Churn_data.csv')
 
-# --- Load Model and Scaler ---
+# Load Model
 @st.cache_resource
-def load_advanced_model():
+def load_model():
     with open('churn_pred.pkl', 'rb') as f:
-        loaded = pickle.load(f)
+        model = pickle.load(f)
+    return model
 
-    # Handle both (model, scaler) or just model
-    if isinstance(loaded, tuple) and len(loaded) == 2:
-        model, scaler = loaded
-    else:
-        model = loaded
-        scaler = None  # No scaler present
-
-    # Define expected columns manually
-    model_columns = [
-        'tenure', 'MonthlyCharges', 'TotalCharges',
-        'Contract_Month-to-month', 'Contract_One year', 'Contract_Two year',
-        'PaymentMethod_Electronic check', 'PaymentMethod_Mailed check',
-        'PaymentMethod_Bank transfer (automatic)', 'PaymentMethod_Credit card (automatic)',
-        'InternetService_DSL', 'InternetService_Fiber optic', 'InternetService_No'
-    ]
-
-    return model, scaler, model_columns
-
-# Load everything
+# Load resources
 data = load_data()
-model, scaler, model_columns = load_advanced_model()
+model = load_model()
 
-# --- Sidebar Navigation ---
+# Sidebar Navigation
 st.sidebar.title("🔍 Navigation")
 page = st.sidebar.radio("Go to", ["🏠 Churn Prediction", "📈 Insights & Graphs", "📄 Raw Data"])
 
-# ========================= 🏠 Churn Prediction Page =========================
+# ======================= 🏠 MAIN: Churn Prediction =======================
 if page == "🏠 Churn Prediction":
     st.title("🔮 Telecom Churn Prediction")
-    st.markdown("Train and test your model by entering customer details:")
+    st.markdown("Enter customer details to predict churn likelihood.")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -72,55 +48,43 @@ if page == "🏠 Churn Prediction":
         ])
         internet = st.selectbox('Internet Service', ['DSL', 'Fiber optic', 'No'])
 
-    # Prepare input
+    # Raw input for model pipeline
     input_data = pd.DataFrame({
         'tenure': [tenure],
         'MonthlyCharges': [monthly],
         'TotalCharges': [total],
-        f'Contract_{contract}': [1],
-        f'PaymentMethod_{payment}': [1],
-        f'InternetService_{internet}': [1]
+        'Contract': [contract],
+        'PaymentMethod': [payment],
+        'InternetService': [internet]
     })
 
-    # Fill missing columns
-    for col in model_columns:
-        if col not in input_data.columns:
-            input_data[col] = 0
-    input_data = input_data[model_columns]
-
-    # Safe scaling
-    try:
-        input_scaled = scaler.transform(input_data) if scaler else input_data
-    except Exception as e:
-        st.error(f"❌ Error during scaling: {e}")
-        st.stop()
-
-    # Predict
+    # Prediction
     if st.button("🔍 Predict Churn"):
-        pred = model.predict(input_scaled)[0]
-        prob = model.predict_proba(input_scaled)[0][1] * 100
+        try:
+            prediction = model.predict(input_data)[0]
+            probability = model.predict_proba(input_data)[0][1] * 100
 
-        if pred == 1:
-            st.error(f"⚠️ Likely to churn (Probability: {prob:.1f}%)")
-        else:
-            st.success(f"✅ Not likely to churn (Probability: {100 - prob:.1f}%)")
+            if prediction == 1:
+                st.error(f"⚠️ Likely to churn (Probability: {probability:.1f}%)")
+            else:
+                st.success(f"✅ Not likely to churn (Probability: {100 - probability:.1f}%)")
 
-        # Feature importance
-        if hasattr(model, 'feature_importances_'):
-            st.subheader("📊 Feature Importance (Top 5)")
-            feat_df = pd.DataFrame({
-                'feature': model_columns,
-                'importance': model.feature_importances_
-            }).sort_values('importance', ascending=False).head(5)
-            fig, ax = plt.subplots()
-            bars = ax.barh(feat_df['feature'], feat_df['importance'], color='#4e79a7')
-            ax.invert_yaxis()
-            ax.set_xlabel('Importance')
-            st.pyplot(fig)
+            # Feature Importance (if supported)
+            if hasattr(model, 'named_steps') and hasattr(model.named_steps[list(model.named_steps)[-1]], 'feature_importances_'):
+                st.subheader("📊 Feature Importance (Top 5)")
+                final_model = model.named_steps[list(model.named_steps)[-1]]
+                try:
+                    importances = final_model.feature_importances_
+                    st.info("Feature importance is based on the final model.")
+                    # You may need the actual column names post-preprocessing for accurate mapping
+                except:
+                    st.warning("Feature importances not available.")
+        except Exception as e:
+            st.error(f"⚠️ Prediction error: {e}")
 
-# ========================= 📈 Insights & Graphs =========================
+# ======================= 📈 Insights Tab =======================
 elif page == "📈 Insights & Graphs":
-    st.title("📈 Churn Insights and Visualizations")
+    st.title("📈 Churn Insights & Visualizations")
 
     st.subheader("✅ Churn Distribution")
     churn_counts = data['Churn'].value_counts()
@@ -145,15 +109,16 @@ elif page == "📈 Insights & Graphs":
     ax.bar_label(bars, fmt='%.1f%%')
     st.pyplot(fig)
 
-    st.markdown("### ✏️ Key Insights")
+    st.markdown("### 🧠 Key Business Insights")
     st.markdown("""
     - Month-to-month contracts have the highest churn.
-    - Electronic checks show higher churn than auto-payments.
-    - Longer-tenure customers churn less.
+    - Customers paying with electronic checks churn more.
+    - Customers with fiber optic internet churn more.
     """)
 
-# ========================= 📄 Raw Data =========================
+# ======================= 📄 Raw Data =======================
 elif page == "📄 Raw Data":
-    st.title("📄 Raw Data Preview")
+    st.title("📄 Raw Dataset Preview")
     st.dataframe(data)
-    st.markdown(f"**Total Records:** {len(data)}")
+    st.caption(f"Total Records: {len(data)}")
+
