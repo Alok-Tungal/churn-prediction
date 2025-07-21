@@ -26,7 +26,7 @@ def load_advanced_model():
     return model, scaler, columns
 
 data = load_data()
-model, scaler, model_columns = load_advanced_model('churn_pred.pkl')
+model, scaler, model_columns = load_advanced_model()
 
 # Title
 st.title("📊 Telecom Customer Churn Dashboard")
