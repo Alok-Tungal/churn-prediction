@@ -22,7 +22,7 @@ plt.rcParams['figure.figsize'] = (8, 5)
 # Load data
 @st.cache_data
 def load_data():
-    return pd.read_csv('churn_data.csv')  # ✅ Ensure this file exists in your folder
+    return pd.read_csv('Churn_data.csv')  # ✅ Ensure this file exists in your folder
 
 # Load model and scaler
 @st.cache_resource
