@@ -4,8 +4,13 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import pickle
 import numpy as np
+import sys
 
-# Streamlit config
+# 🔧 PATCH custom functions used in the model (to avoid AttributeError)
+def ordinal_encode_func(df): return df
+sys.modules['__main__'].ordinal_encode_func = ordinal_encode_func
+
+# Layout settings
 st.set_page_config(page_title="📊 Telecom Churn App", layout="wide")
 sns.set(style='whitegrid')
 plt.rcParams['figure.figsize'] = (8, 5)
@@ -15,7 +20,7 @@ plt.rcParams['figure.figsize'] = (8, 5)
 def load_data():
     return pd.read_csv('Churn_data.csv')
 
-# Load Model
+# Load Pickle Model (patch-safe)
 @st.cache_resource
 def load_model():
     with open('churn_pred.pkl', 'rb') as f:
@@ -48,7 +53,7 @@ if page == "🏠 Churn Prediction":
         ])
         internet = st.selectbox('Internet Service', ['DSL', 'Fiber optic', 'No'])
 
-    # Raw input for model pipeline
+    # Prepare input
     input_data = pd.DataFrame({
         'tenure': [tenure],
         'MonthlyCharges': [monthly],
@@ -69,18 +74,24 @@ if page == "🏠 Churn Prediction":
             else:
                 st.success(f"✅ Not likely to churn (Probability: {100 - probability:.1f}%)")
 
-            # Feature Importance (if supported)
+            # Feature Importance
             if hasattr(model, 'named_steps') and hasattr(model.named_steps[list(model.named_steps)[-1]], 'feature_importances_'):
-                st.subheader("📊 Feature Importance (Top 5)")
                 final_model = model.named_steps[list(model.named_steps)[-1]]
-                try:
-                    importances = final_model.feature_importances_
-                    st.info("Feature importance is based on the final model.")
-                    # You may need the actual column names post-preprocessing for accurate mapping
-                except:
-                    st.warning("Feature importances not available.")
+                importances = final_model.feature_importances_
+
+                st.subheader("📊 Feature Importance (Top 5)")
+                feat_df = pd.DataFrame({
+                    'feature': input_data.columns,
+                    'importance': importances[:len(input_data.columns)]
+                }).sort_values(by='importance', ascending=False).head(5)
+
+                fig, ax = plt.subplots()
+                bars = ax.barh(feat_df['feature'], feat_df['importance'], color='#4e79a7')
+                ax.invert_yaxis()
+                st.pyplot(fig)
+
         except Exception as e:
-            st.error(f"⚠️ Prediction error: {e}")
+            st.error(f"❌ Prediction Error: {str(e)}")
 
 # ======================= 📈 Insights Tab =======================
 elif page == "📈 Insights & Graphs":
@@ -109,6 +120,7 @@ elif page == "📈 Insights & Graphs":
     ax.bar_label(bars, fmt='%.1f%%')
     st.pyplot(fig)
 
+    
     st.markdown("### 🧠 Key Business Insights")
     st.markdown("""
     - Month-to-month contracts have the highest churn.
@@ -121,4 +133,3 @@ elif page == "📄 Raw Data":
     st.title("📄 Raw Dataset Preview")
     st.dataframe(data)
     st.caption(f"Total Records: {len(data)}")
-
