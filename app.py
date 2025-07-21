@@ -19,8 +19,6 @@ def load_advanced_model():
         model, scaler, columns = pickle.load(f)
     return model, scaler, columns
 
-data = load_data()
-model, scaler, model_columns = load_advanced_model()
 
 # Title
 st.title("📊 Telecom Customer Churn Dashboard")
