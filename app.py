@@ -6,92 +6,100 @@ import pickle
 import numpy as np
 import sys
 
-# 🔧 PATCH custom functions used in the model (to avoid AttributeError)
+# Dummy patch if your model uses custom preprocessing
 def ordinal_encode_func(df): return df
 sys.modules['__main__'].ordinal_encode_func = ordinal_encode_func
 
-# Layout settings
+# Layout
 st.set_page_config(page_title="📊 Telecom Churn App", layout="wide")
 sns.set(style='whitegrid')
 plt.rcParams['figure.figsize'] = (8, 5)
 
-# Load Data
+# Load data
 @st.cache_data
 def load_data():
     return pd.read_csv('Churn_data.csv')
 
-# Load Pickle Model (patch-safe)
 @st.cache_resource
 def load_model():
-    with open('churn_pred.pkl', 'rb') as f:
-        model = pickle.load(f)
-    return model
+    with open('model.pkl', 'rb') as f:  # Updated model file name
+        return pickle.load(f)
 
 # Load resources
 data = load_data()
 model = load_model()
 
-# Sidebar Navigation
+# Navigation
 st.sidebar.title("🔍 Navigation")
 page = st.sidebar.radio("Go to", ["🏠 Churn Prediction", "📈 Insights & Graphs", "📄 Raw Data"])
 
-# ======================= 🏠 MAIN: Churn Prediction =======================
+# ======================= 🏠 Churn Prediction =======================
 if page == "🏠 Churn Prediction":
     st.title("🔮 Telecom Churn Prediction")
-    st.markdown("Enter customer details to predict churn likelihood.")
+    st.markdown("Enter customer details to predict churn likelihood:")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        tenure = st.slider('Tenure (months)', 0, 100, 12)
-        monthly = st.number_input('Monthly Charges', 0.0, 200.0, 70.0)
-        total = st.number_input('Total Charges', 0.0, 10000.0, 2500.0)
-    with col2:
-        contract = st.selectbox('Contract Type', ['Month-to-month', 'One year', 'Two year'])
-        payment = st.selectbox('Payment Method', [
-            'Electronic check', 'Mailed check',
-            'Bank transfer (automatic)', 'Credit card (automatic)'
-        ])
-        internet = st.selectbox('Internet Service', ['DSL', 'Fiber optic', 'No'])
+    with st.form("prediction_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            gender = st.selectbox('Gender', ['Male', 'Female'])
+            SeniorCitizen = st.selectbox('Senior Citizen', [0, 1])
+            Partner = st.selectbox('Partner', ['Yes', 'No'])
+            Dependents = st.selectbox('Dependents', ['Yes', 'No'])
+            tenure = st.slider('Tenure (months)', 0, 100, 12)
+            PhoneService = st.selectbox('Phone Service', ['Yes', 'No'])
+            MultipleLines = st.selectbox('Multiple Lines', ['Yes', 'No', 'No phone service'])
+            InternetService = st.selectbox('Internet Service', ['DSL', 'Fiber optic', 'No'])
+            OnlineSecurity = st.selectbox('Online Security', ['Yes', 'No', 'No internet service'])
+            OnlineBackup = st.selectbox('Online Backup', ['Yes', 'No', 'No internet service'])
+        with col2:
+            DeviceProtection = st.selectbox('Device Protection', ['Yes', 'No', 'No internet service'])
+            TechSupport = st.selectbox('Tech Support', ['Yes', 'No', 'No internet service'])
+            StreamingTV = st.selectbox('Streaming TV', ['Yes', 'No', 'No internet service'])
+            StreamingMovies = st.selectbox('Streaming Movies', ['Yes', 'No', 'No internet service'])
+            Contract = st.selectbox('Contract', ['Month-to-month', 'One year', 'Two year'])
+            PaperlessBilling = st.selectbox('Paperless Billing', ['Yes', 'No'])
+            PaymentMethod = st.selectbox('Payment Method', [
+                'Electronic check', 'Mailed check',
+                'Bank transfer (automatic)', 'Credit card (automatic)'
+            ])
+            MonthlyCharges = st.number_input('Monthly Charges', 0.0, 200.0, 70.0)
+            TotalCharges = st.number_input('Total Charges', 0.0, 10000.0, 2500.0)
 
-    # Prepare input
-    input_data = pd.DataFrame({
-        'tenure': [tenure],
-        'MonthlyCharges': [monthly],
-        'TotalCharges': [total],
-        'Contract': [contract],
-        'PaymentMethod': [payment],
-        'InternetService': [internet]
-    })
+        submitted = st.form_submit_button("🔍 Predict")
 
-    # Prediction
-    if st.button("🔍 Predict Churn"):
-        try:
-            prediction = model.predict(input_data)[0]
-            probability = model.predict_proba(input_data)[0][1] * 100
+        if submitted:
+            input_data = pd.DataFrame([{
+                'gender': gender,
+                'SeniorCitizen': SeniorCitizen,
+                'Partner': Partner,
+                'Dependents': Dependents,
+                'tenure': tenure,
+                'PhoneService': PhoneService,
+                'MultipleLines': MultipleLines,
+                'InternetService': InternetService,
+                'OnlineSecurity': OnlineSecurity,
+                'OnlineBackup': OnlineBackup,
+                'DeviceProtection': DeviceProtection,
+                'TechSupport': TechSupport,
+                'StreamingTV': StreamingTV,
+                'StreamingMovies': StreamingMovies,
+                'Contract': Contract,
+                'PaperlessBilling': PaperlessBilling,
+                'PaymentMethod': PaymentMethod,
+                'MonthlyCharges': MonthlyCharges,
+                'TotalCharges': TotalCharges
+            }])
 
-            if prediction == 1:
-                st.error(f"⚠️ Likely to churn (Probability: {probability:.1f}%)")
-            else:
-                st.success(f"✅ Not likely to churn (Probability: {100 - probability:.1f}%)")
+            try:
+                prediction = model.predict(input_data)[0]
+                probability = model.predict_proba(input_data)[0][1] * 100
 
-            # Feature Importance
-            if hasattr(model, 'named_steps') and hasattr(model.named_steps[list(model.named_steps)[-1]], 'feature_importances_'):
-                final_model = model.named_steps[list(model.named_steps)[-1]]
-                importances = final_model.feature_importances_
-
-                st.subheader("📊 Feature Importance (Top 5)")
-                feat_df = pd.DataFrame({
-                    'feature': input_data.columns,
-                    'importance': importances[:len(input_data.columns)]
-                }).sort_values(by='importance', ascending=False).head(5)
-
-                fig, ax = plt.subplots()
-                bars = ax.barh(feat_df['feature'], feat_df['importance'], color='#4e79a7')
-                ax.invert_yaxis()
-                st.pyplot(fig)
-
-        except Exception as e:
-            st.error(f"❌ Prediction Error: {str(e)}")
+                if prediction == 1:
+                    st.error(f"⚠️ Likely to churn (Probability: {probability:.1f}%)")
+                else:
+                    st.success(f"✅ Not likely to churn (Probability: {100 - probability:.1f}%)")
+            except Exception as e:
+                st.error(f"❌ Prediction Error: {str(e)}")
 
 # ======================= 📈 Insights Tab =======================
 elif page == "📈 Insights & Graphs":
@@ -120,12 +128,11 @@ elif page == "📈 Insights & Graphs":
     ax.bar_label(bars, fmt='%.1f%%')
     st.pyplot(fig)
 
-    
     st.markdown("### 🧠 Key Business Insights")
     st.markdown("""
     - Month-to-month contracts have the highest churn.
     - Customers paying with electronic checks churn more.
-    - Customers with fiber optic internet churn more.
+    - Fiber optic users churn more than DSL users.
     """)
 
 # ======================= 📄 Raw Data =======================
