@@ -10,9 +10,6 @@ st.set_page_config(page_title="📊 Telecom Churn Dashboard", layout="wide")
 sns.set(style='whitegrid')
 plt.rcParams['figure.figsize'] = (8, 5)
 
-@st.cache_data
-def load_data():
-    return pd.read_csv('churn_dataset.csv')
 
 @st.cache_resource
 def load_advanced_model():
