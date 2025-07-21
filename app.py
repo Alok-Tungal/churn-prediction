@@ -11,14 +11,17 @@ sns.set(style='whitegrid')
 plt.rcParams['figure.figsize'] = (8, 5)
 
 @st.cache_data
-@st.cache_data
-        
+def load_data():
+    return pd.read_csv('churn_dataset.csv')
+
 @st.cache_resource
 def load_advanced_model():
-    with open('churn_pred.pkl', 'rb') as f:
+    with open('advanced_churn_model.pkl', 'rb') as f:
         model, scaler, columns = pickle.load(f)
     return model, scaler, columns
 
+data = load_data()
+model, scaler, model_columns = load_advanced_model()
 
 # Title
 st.title("📊 Telecom Customer Churn Dashboard")
