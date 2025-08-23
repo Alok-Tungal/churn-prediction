@@ -5,7 +5,7 @@
 # import pickle
 # import numpy as np
 # import sys
-
+ 
 # # Patch custom functions if needed
 # def ordinal_encode_func(df): return df
 # sys.modules['__main__'].ordinal_encode_func = ordinal_encode_func
@@ -521,4 +521,5 @@ elif page == "About":
 
     Built with ❤️ — customize visuals or let me add a theme switcher / QR share / SHAP explainability (if you want deeper interpretability).
     """)
+
 
