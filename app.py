@@ -6,7 +6,7 @@
 # import numpy as np  
 # import sys 
  
-# # Patch custom functions if needed
+# # Patch custom functions if needed   
 # def ordinal_encode_func(df): return df
 # sys.modules['__main__'].ordinal_encode_func = ordinal_encode_func
 
@@ -1153,6 +1153,7 @@ elif nav == "⚙️ Settings":
             st.cache_resource.clear()
         st.success("Done! Restart the app or switch tabs to see updates.")
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
