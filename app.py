@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import seaborn as sns 
 import matplotlib.pyplot as plt
-import pickle
+import pickle 
 import numpy as np   
 import sys 
   
@@ -913,6 +913,7 @@ elif page == "About":
 #     st.write(cm)
 #     st.write("Classification report")
 #     st.text(classification_report(y, preds, digits=3))
+
 
 
 
