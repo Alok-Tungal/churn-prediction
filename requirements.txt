@@ -1,9 +1,11 @@
-streamlit
-pandas
-plotly
-matplotlib
-seaborn
-scikit-learn
-joblib
-pip install -r requirements.txt
-streamlit run app.py
+
+
+streamlit>=1.36
+pandas>=2.2
+numpy>=1.26
+scikit-learn>=1.4
+plotly>=5.22
+matplotlib>=3.8
+seaborn>=0.13
+joblib>=1.3
+shap>=0.45
