@@ -753,7 +753,7 @@ def make_pipeline(df):
     pre = ColumnTransformer(
         transformers=[
             ("num", StandardScaler(with_mean=False), num_cols),
-            ("cat", OneHotEncoder(handle_unknown="ignore", sparse=False), cat_cols)
+            ("cat", OneHotEncoder(handle_unknown="ignore", sparse_output=False), cat_cols)
         ],
         remainder="drop",
         verbose_feature_names_out=False,
@@ -769,7 +769,8 @@ def train_and_save():
     df = generate_telco_data(n=7000, seed=11)
     df.to_csv(DATA_PATH, index=False)
 
-    pipe, num_cols, cat_cols = make_pipeline(df)
+    pipe = make_pipeline(df)
+
     y = df["Churn"].map(lambda x: 1 if str(x).strip().lower() in ("yes","y","1","true","t") else 0)
     X = df.drop(columns=["Churn", "customerID"], errors="ignore")
 
@@ -1153,6 +1154,7 @@ elif nav == "⚙️ Settings":
             st.cache_resource.clear()
         st.success("Done! Restart the app or switch tabs to see updates.")
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
