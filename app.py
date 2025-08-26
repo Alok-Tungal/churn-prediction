@@ -512,7 +512,7 @@ elif page == "About":
     Features:
     - Clean KPI cards, interactive Plotly charts, correlation heatmap
     - Live prediction form with probability + business recommendation
-    - Auto-training fallback (simple RandomForest) if you upload labeled data but no model
+    - Auto-training fallback (simple RandomForest) if you upload labeled data but no model 
     - Downloadable scored CSV for operational use
 
     👉 Tips:
@@ -913,6 +913,7 @@ elif page == "About":
 #     st.write(cm)
 #     st.write("Classification report")
 #     st.text(classification_report(y, preds, digits=3))
+
 
 
 
