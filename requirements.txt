@@ -5,4 +5,5 @@ matplotlib
 seaborn
 scikit-learn
 joblib
-
+pip install -r requirements.txt
+streamlit run app.py
