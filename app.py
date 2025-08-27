@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import pickle
 import numpy as np
 import sys
-
+ 
 # Patch custom functions if needed
 def ordinal_encode_func(df): return df
 sys.modules['__main__'].ordinal_encode_func = ordinal_encode_func
@@ -658,6 +658,7 @@ elif page == "⚙️ Model Info":
 # ---------- Footer ----------
 st.markdown("---")
 st.caption("Built with ❤️ by Alok — polished for real-world demos.")
+
 
 
 
